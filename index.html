@@ -289,11 +289,12 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     while((m=STATUS_RE.exec(s))&&out.length<6){if(!seen[m[1]]){seen[m[1]]=1;out.push(m[1]);}}
     return out;
   }
-  var STOP_ACTIVE=null; // etykieta STOP na #47: true / false / null (nieznana); ustawia renderStop
+  // Etykieta STOP na #47 tak, jak pokazuje ją pasek STOP (renderStop): tylko „active” barwi plakietkę STOP na czerwono.
+  function stopIsActive(){var b=document.getElementById("stop");return !!b&&b.dataset.state==="active";}
   function chipClass(s){
     if(/^(PASS|MERGED|ACCEPT)$/.test(s))return "chip ok";
     // Słowo STOP z treści wpisu nie jest stanem etykiety: na czerwono tylko przy aktywnej etykiecie STOP na #47.
-    if(s==="STOP")return STOP_ACTIVE===true?"chip bad":"chip";
+    if(s==="STOP")return stopIsActive()?"chip bad":"chip";
     if(/^(FAIL|BLOCKED|TECHNICAL_BLOCKER)$/.test(s))return "chip bad";
     return "chip warn";
   }
@@ -356,7 +357,6 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     var labels; try{labels=readLabels(res);}catch(e){labels=null;}
     if(!Array.isArray(labels)||labels.some(function(l){return !(typeof l==="string"||(l&&typeof l.name==="string"));})){box.dataset.state="unknown";$("stop-title").textContent="STOP: odpowiedź nieczytelna";$("stop-text").textContent="Nie rozpoznałam pełnej listy etykiet. To nie potwierdza STOP. Wstrzymane są operacje chronione; analiza i testy mogą trwać.";return;}
     var active=labels.some(function(l){return (typeof l==="string"?l:l.name)==="STOP";});
-    if(STOP_ACTIVE!==active){STOP_ACTIVE=active; Object.keys(lastFeeds).forEach(function(k){renderFeed.apply(null,lastFeeds[k]);});}
     box.dataset.state=active?"active":"inactive";
     $("stop-title").textContent=active?"STOP AKTYWNY":"STOP nieaktywny";
     $("stop-text").textContent=(active?"Zapisy kodu/danych/konfiguracji, scalenia i wykonawcy z prawem zapisu są wstrzymani. Analiza i neutralne testy mogą trwać. STOP zdejmuje tylko Bogusław.":"Etykieta STOP nie jest ustawiona na #47; automaty mogą pracować w swoich granicach.")+" ("+stamp(res)+")";
@@ -747,10 +747,10 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     }
     MCP=mcp;
     $("mode").textContent=(mcp.rest?"GitHub · Twój token, bez AI":"GitHub · konektor claude.ai")+" · odczyt + zapis decyzji w #50";
-    var denied=false;
+    var denied=false, stopShown=false;
 
     mcp.watchTool(GH,"issue_read",{method:"get_labels",owner:OWNER,repo:REPO,issue_number:47},function(ev){
-      if(ev.type==="data")renderStop(ev.result);
+      if(ev.type==="data"){renderStop(ev.result); var now=stopIsActive(); if(now!==stopShown){stopShown=now; Object.keys(lastFeeds).forEach(function(k){renderFeed.apply(null,lastFeeds[k]);});}}
       else{renderStop(null,ev.error); if(DENIAL.test(ev.error.code||"")){denied=true;grantButton("stop-text",mcp);}}
     },{refetchInterval:60000});
 
