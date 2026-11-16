@@ -5,6 +5,8 @@
 <!--
   SIMAS Cockpit v0 (SIMAS-COCKPIT-01) — widok tylko do odczytu.
   Zrodlo stanu: GitHub Ubikfam/BliSperanto (#47 STOP i kolejka, #50 decyzje, PR).
+  v0.9 (16.11.2026): biezaca praca z #163 (Bliss Black Box), autorzy wpisow Klaudia/Koda, plakietka STOP z tresci
+  wpisu szara (czerwona tylko przy aktywnej etykiecie STOP na #47).
   v0.8 (16.11.2026, polecenie wlasciciela: jeden Stirpanelo niezalezny od AI). Dwie drogi do tych samych danych:
   1) w claude.ai: konektor GitHub widza (capability "mcp");
   2) poza claude.ai (plik lokalny, GitHub Pages, dowolna przegladarka): wlasny token GitHub wlasciciela, wpisany
@@ -107,7 +109,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
 
 <div class="wrap">
   <header class="top">
-    <h1>SIMAS Stirpanelo <small>v0.8 · działa w claude.ai i bez AI</small></h1>
+    <h1>SIMAS Stirpanelo <small>v0.9 · działa w claude.ai i bez AI</small></h1>
     <span class="mode" id="mode">Łączenie z GitHubem…</span>
   </header>
 
@@ -145,7 +147,13 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
   <!-- POSTĘP -->
   <section class="panel" id="p-postep" role="tabpanel" aria-labelledby="tab-postep">
     <div class="block">
-      <div class="block-head"><h2>Ostatnie wyniki w kolejce programu</h2><span class="src" id="feed-src">Issue #47 · oczekiwanie na odczyt</span></div>
+      <div class="block-head"><h2>Bliss Black Box · bieżąca praca</h2><span class="src" id="bbb-src">Issue #163 · oczekiwanie na odczyt</span></div>
+      <div class="notice" id="bbb-state">Najnowsze zadania i meldunki z #163. Statusy w plakietkach są kopiowane z treści wpisu; pulpit ich nie interpretuje ani nie zatwierdza.</div>
+      <ul class="feed" id="bbb"></ul>
+      <div class="row"><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/163" target="_blank" rel="noopener">Otwórz #163</a><a class="btn" href="https://github.com/Ubikfam/BliSperanto/pull/165" target="_blank" rel="noopener">PR #165</a></div>
+    </div>
+    <div class="block">
+      <div class="block-head"><h2>Kolejka programu (#47)</h2><span class="src" id="feed-src">Issue #47 · oczekiwanie na odczyt</span></div>
       <div class="notice" id="feed-state">Wpisy pojawią się po odczycie Issue #47. Statusy w etykietach są kopiowane z treści wpisu; pulpit ich nie interpretuje ani nie zatwierdza.</div>
       <ul class="feed" id="feed"></ul>
       <div class="row"><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/47" target="_blank" rel="noopener">Otwórz #47</a><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/4" target="_blank" rel="noopener">Stan demonstratora #4</a></div>
@@ -175,8 +183,8 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
   <!-- ZESPÓŁ -->
   <section class="panel" id="p-zespol" role="tabpanel" aria-labelledby="tab-zespol" hidden>
     <div class="block">
-      <div class="block-head"><h2>Ostatni ślad pracy zespołu</h2><span class="src" id="team-src">#47 i #1 · oczekiwanie na odczyt</span></div>
-      <div class="notice">Na podstawie najnowszych wpisów w #47 i #1. Brak wpisu oznacza tylko brak śladu w tym wycinku, a nie przestój.</div>
+      <div class="block-head"><h2>Ostatni ślad pracy zespołu</h2><span class="src" id="team-src">#163, #47 i #1 · oczekiwanie na odczyt</span></div>
+      <div class="notice">Na podstawie najnowszych wpisów w #163, #47 i #1. Brak wpisu oznacza tylko brak śladu w tym wycinku, a nie przestój.</div>
       <div class="grid2" id="team"></div>
     </div>
     <div class="block">
@@ -212,7 +220,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     </div>
   </section>
 
-  <p class="src">SIMAS-COCKPIT-01 · v0.8 · Odczyt przez Twój konektor GitHub (claude.ai) albo Twój token GitHub (poza claude.ai). Plik nie zawiera tokenów ani skopiowanych danych projektu. <button class="copybtn" id="token-forget" type="button" hidden>Zapomnij token na tym urządzeniu</button> Ni simas kaj simas!</p>
+  <p class="src">SIMAS-COCKPIT-01 · v0.9 · Odczyt przez Twój konektor GitHub (claude.ai) albo Twój token GitHub (poza claude.ai). Plik nie zawiera tokenów ani skopiowanych danych projektu. <button class="copybtn" id="token-forget" type="button" hidden>Zapomnij token na tym urządzeniu</button> Ni simas kaj simas!</p>
 </div>
 
 <script>
@@ -278,19 +286,25 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     while((m=STATUS_RE.exec(s))&&out.length<6){if(!seen[m[1]]){seen[m[1]]=1;out.push(m[1]);}}
     return out;
   }
+  var STOP_ACTIVE=null; // etykieta STOP na #47: true / false / null (nieznana); ustawia renderStop
   function chipClass(s){
     if(/^(PASS|MERGED|ACCEPT)$/.test(s))return "chip ok";
-    if(/^(FAIL|BLOCKED|TECHNICAL_BLOCKER|STOP)$/.test(s))return "chip bad";
+    // Słowo STOP z treści wpisu nie jest stanem etykiety: na czerwono tylko przy aktywnej etykiecie STOP na #47.
+    if(s==="STOP")return STOP_ACTIVE===true?"chip bad":"chip";
+    if(/^(FAIL|BLOCKED|TECHNICAL_BLOCKER)$/.test(s))return "chip bad";
     return "chip warn";
   }
-  function chips(list){var c=el("div","chips");list.forEach(function(s){c.appendChild(el("span",chipClass(s),s));});return c;}
+  function chips(list){var c=el("div","chips");list.forEach(function(s){var k=el("span",chipClass(s),s);if(s==="STOP")k.title="Słowo z treści wpisu, nie stan etykiety STOP";c.appendChild(k);});return c;}
   function actor(c){
     var login=c&&c.user&&c.user.login||"";
     if(login==="claude[bot]")return "Koda";
     if(login==="chatgpt-codex-connector[bot]")return "AidaX";
-    // Konto Ubikfam pisze za AidęW, KlaudięW i Bogusława: rozstrzyga pierwsze imię w nagłówku wpisu.
+    // Konto Ubikfam pisze za AidęW, KlaudięW, Kodę (sesja ręczna) i Bogusława: rozstrzyga najwcześniejszy podpis
+    // w nagłówku wpisu. Koda tylko w formie podpisu („Koda —”, „Koda:”, „Meldunek Kody”), nie jako adresat zdania.
     var head=String(c&&c.body||"").slice(0,240), best=null, at=1e9;
-    ["KlaudiaW","AidaW","Bogusław"].forEach(function(n){var i=head.indexOf(n);if(i>=0&&i<at){at=i;best=n;}});
+    [["KlaudiaW",/KlaudiaW|Klaudia \(czat\)/],["AidaW",/AidaW/],["Koda",/Koda\s*[—–:-]|Meldunek Kody|Koda \(/],["Bogusław",/Bogusław/]].forEach(function(p){
+      var m=p[1].exec(head); if(m&&m.index<at){at=m.index;best=p[0];}
+    });
     return best||("konto "+(login||"nieznane"));
   }
 
@@ -338,6 +352,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     var labels; try{labels=readLabels(res);}catch(e){labels=null;}
     if(!Array.isArray(labels)||labels.some(function(l){return !(typeof l==="string"||(l&&typeof l.name==="string"));})){box.dataset.state="unknown";$("stop-title").textContent="STOP: odpowiedź nieczytelna";$("stop-text").textContent="Nie rozpoznałam pełnej listy etykiet. To nie potwierdza STOP. Wstrzymane są operacje chronione; analiza i testy mogą trwać.";return;}
     var active=labels.some(function(l){return (typeof l==="string"?l:l.name)==="STOP";});
+    if(STOP_ACTIVE!==active){STOP_ACTIVE=active; Object.keys(lastFeeds).forEach(function(k){renderFeed.apply(null,lastFeeds[k]);});}
     box.dataset.state=active?"active":"inactive";
     $("stop-title").textContent=active?"STOP AKTYWNY":"STOP nieaktywny";
     $("stop-text").textContent=(active?"Zapisy kodu/danych/konfiguracji, scalenia i wykonawcy z prawem zapisu są wstrzymani. Analiza i neutralne testy mogą trwać. STOP zdejmuje tylko Bogusław.":"Etykieta STOP nie jest ustawiona na #47; automaty mogą pracować w swoich granicach.")+" ("+stamp(res)+")";
@@ -351,13 +366,16 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     return labels;
   }
   // ---------- #47 feed + team + novina ----------
-  var lastComments={i47:[],i1:[],i50:[]};
-  function renderFeed(list,res){
-    var ul=$("feed"); ul.textContent="";
+  var lastComments={i47:[],i1:[],i50:[],i163:[]};
+  var FEED47={ul:"feed",src:"feed-src",state:"feed-state",label:"Issue #47"}, FEED163={ul:"bbb",src:"bbb-src",state:"bbb-state",label:"Issue #163"};
+  var lastFeeds={};
+  function renderFeed(list,res,f){
+    f=f||FEED47; lastFeeds[f.ul]=[list,res,f];
+    var ul=$(f.ul); ul.textContent="";
     var items=list.slice().reverse().slice(0,8);
-    $("feed-src").textContent="Issue #47 · "+stamp(res);
-    if(!items.length){setNotice("feed-state","Brak wpisów w ostatnim wycinku #47.");return;}
-    $("feed-state").hidden=true;
+    $(f.src).textContent=f.label+" · "+stamp(res);
+    if(!items.length){setNotice(f.state,"Brak wpisów w ostatnim wycinku "+f.label+".");return;}
+    $(f.state).hidden=true;
     items.forEach(function(c){
       var li=el("li");
       var meta=el("div","meta"); meta.appendChild(el("span",null,actor(c))); meta.appendChild(el("span","mono",fmt(c.created_at))); meta.appendChild(link(c.html_url,"otwórz wpis"));
@@ -367,10 +385,9 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
       var ex=plain(String(c.body||"").replace(/^\s*[^\n]*\n?/,"")); if(ex) li.appendChild(el("p","excerpt",ex.length>300?ex.slice(0,300)+"…":ex));
       ul.appendChild(li);
     });
-    $("feed-src").textContent="Issue #47 · "+stamp(res);
   }
   function renderTeam(){
-    var all=lastComments.i47.concat(lastComments.i1);
+    var all=lastComments.i163.concat(lastComments.i47,lastComments.i1);
     var who=["AidaW","KlaudiaW","Koda","AidaX"], desc={AidaW:"orkiestracja, kolejka",KlaudiaW:"architektura, konsultacje",Koda:"Claude Code w Actions, kontrola",AidaX:"Codex, kontrola i wykonanie"};
     var box=$("team"); box.textContent="";
     who.forEach(function(w){
@@ -622,7 +639,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     $("mode").textContent="Bez połączenia";
     $("offline").hidden=false;
     renderStop(null,{code:"not_connected"});
-    ["feed-state","pr-state","dec-state","nov-state"].forEach(function(id){setNotice(id,"Źródło niedostępne w tym widoku. Nie pokazuję danych bieżących ani przykładowych.","bad");});
+    ["bbb-state","feed-state","pr-state","dec-state","nov-state"].forEach(function(id){setNotice(id,"Źródło niedostępne w tym widoku. Nie pokazuję danych bieżących ani przykładowych.","bad");});
     $("team").textContent=""; $("team").appendChild(el("p","muted","Źródło niedostępne w tym widoku."));
   }
 
@@ -647,7 +664,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
   });
   $("token-forget").addEventListener("click",function(){forgetToken();location.reload();});
   function restApi(token){
-    var base="https://api.github.com/repos/"+OWNER+"/"+REPO, ISSUES=[1,47,50];
+    var base="https://api.github.com/repos/"+OWNER+"/"+REPO, ISSUES=[1,47,50,163];
     function req(method,path,body){
       return fetch(base+path,{method:method,cache:"no-store",headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28"},body:body?JSON.stringify(body):undefined})
         .then(function(r){
@@ -708,7 +725,11 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     function refreshComments(){
       loadComments(mcp,47,"i47",function(err,list,res){
         if(err){ if(DENIAL.test(err.code||"")){$("feed").textContent="";$("nov").textContent="";lastComments.i47=[];} setNotice("feed-state",errText(err),"bad"); setNotice("nov-state",errText(err),"bad"); renderTeam(); return;}
-        renderFeed(list,res); renderNovina(res); renderTeam(); $("team-src").textContent="#47 i #1 · "+stamp(res);
+        renderFeed(list,res); renderNovina(res); renderTeam(); $("team-src").textContent="#163, #47 i #1 · "+stamp(res);
+      });
+      loadComments(mcp,163,"i163",function(err,list,res){
+        if(err){ if(DENIAL.test(err.code||"")){$("bbb").textContent="";lastComments.i163=[];} setNotice("bbb-state",errText(err),"bad"); renderTeam(); return;}
+        renderFeed(list,res,FEED163); renderTeam();
       });
       loadComments(mcp,1,"i1",function(err){ if(!err)renderTeam(); });
       loadComments(mcp,50,"i50",function(err){ if(err){ if(DENIAL.test(err.code||""))lastComments.i50=[]; } renderDecisions(null); });
