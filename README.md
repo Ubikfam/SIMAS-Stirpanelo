@@ -7,10 +7,10 @@ przeglądarce, bez claude.ai i bez ChatGPT.
 
 ## Jak działa
 
-- Repozytorium zawiera tylko kod strony. Ilustracje Bliss do kart decyzji są w repozytorium prywatnym; tutaj ich nie ma (strona je pomija). **Nie ma tu żadnych danych projektu ani tokenów.**
+- Repozytorium zawiera tylko kod strony. Ilustracje Bliss do kart decyzji zostają w repozytorium prywatnym; strona pobiera je stamtąd Twoim tokenem. **Nie ma tu żadnych danych projektu ani tokenów.**
 - Dane strona czyta dopiero po połączeniu: przy pierwszym otwarciu prosi o własny token GitHub właściciela
-  (fine-grained, tylko repozytorium `Ubikfam/BliSperanto`, uprawnienia *Issues: Read and write* i
-  *Pull requests: Read-only*, z datą wygaśnięcia).
+  (fine-grained, tylko repozytorium `Ubikfam/BliSperanto`, uprawnienia *Issues: Read and write*,
+  *Pull requests: Read-only* i *Contents: Read-only* (grafiki kart decyzji), z datą wygaśnięcia).
 - Token zostaje wyłącznie w przeglądarce tego urządzenia i jest wysyłany tylko do `api.github.com`.
   Przycisk „Zapomnij token” usuwa go z urządzenia.
 - Strona czyta #1, #47, #50 i listę otwartych PR; jedyny zapis to komentarz decyzji „Bogusław zatwierdza: Dnn=n” w #50.

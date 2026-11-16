@@ -5,6 +5,9 @@
 <!--
   SIMAS Cockpit v0 (SIMAS-COCKPIT-01) — widok tylko do odczytu.
   Zrodlo stanu: GitHub Ubikfam/BliSperanto (#47 STOP i kolejka, #50 decyzje, PR).
+  v0.10 (16.11.2026): grafiki do kart decyzji. Karta w #50 moze miec linie "Grafika: sciezka.svg — podpis" (przyklad
+  pytania) i "Grafika 1: ...", "Grafika 2: ..." (rysunki opcji); kilka plikow rozdziela ";". Z tokenem pliki sa
+  pobierane z prywatnego repozytorium (token: Contents: Read-only); w claude.ai dzialaja grafiki dolaczone do artefaktu.
   v0.9 (16.11.2026): biezaca praca z #163 (Bliss Black Box), autorzy wpisow Klaudia/Koda, plakietka STOP z tresci
   wpisu szara (czerwona tylko przy aktywnej etykiecie STOP na #47).
   v0.8 (16.11.2026, polecenie wlasciciela: jeden Stirpanelo niezalezny od AI). Dwie drogi do tych samych danych:
@@ -109,7 +112,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
 
 <div class="wrap">
   <header class="top">
-    <h1>SIMAS Stirpanelo <small>v0.9 · działa w claude.ai i bez AI</small></h1>
+    <h1>SIMAS Stirpanelo <small>v0.10 · działa w claude.ai i bez AI</small></h1>
     <span class="mode" id="mode">Łączenie z GitHubem…</span>
   </header>
 
@@ -129,7 +132,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     <ol>
       <li>Otwórz <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Settings → Fine-grained tokens → Generate new token</a>.</li>
       <li>Repository access: <strong>Only select repositories → Ubikfam/BliSperanto</strong>. Expiration: np. 90 dni.</li>
-      <li>Permissions → Repository: <strong>Issues: Read and write</strong> (zapis tylko decyzji w #50), <strong>Pull requests: Read-only</strong>. Nic więcej.</li>
+      <li>Permissions → Repository: <strong>Issues: Read and write</strong> (zapis tylko decyzji w #50), <strong>Pull requests: Read-only</strong>, <strong>Contents: Read-only</strong> (grafiki do kart decyzji). Nic więcej.</li>
       <li>Skopiuj token (zaczyna się od „github_pat_”) i wklej poniżej.</li>
     </ol>
     <input type="password" id="token-input" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label="Token GitHub">
@@ -220,7 +223,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     </div>
   </section>
 
-  <p class="src">SIMAS-COCKPIT-01 · v0.9 · Odczyt przez Twój konektor GitHub (claude.ai) albo Twój token GitHub (poza claude.ai). Plik nie zawiera tokenów ani skopiowanych danych projektu. <button class="copybtn" id="token-forget" type="button" hidden>Zapomnij token na tym urządzeniu</button> Ni simas kaj simas!</p>
+  <p class="src">SIMAS-COCKPIT-01 · v0.10 · Odczyt przez Twój konektor GitHub (claude.ai) albo Twój token GitHub (poza claude.ai). Plik nie zawiera tokenów ani skopiowanych danych projektu. <button class="copybtn" id="token-forget" type="button" hidden>Zapomnij token na tym urządzeniu</button> Ni simas kaj simas!</p>
 </div>
 
 <script>
@@ -321,6 +324,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
       case "tool_error": return "GitHub zwrócił błąd: "+String(err.message||"").slice(0,160);
       case "not_granted": case "capability_disabled": case "capability_removed": return "Ten widok nie ma dostępu do konektorów.";
       case "not_connected": return "Brak połączenia z GitHubem: nie ma konektora claude.ai ani tokenu na tym urządzeniu.";
+      case "needs_token": return "Ta grafika jest dostępna w wersji z tokenem GitHub.";
       case "token_invalid": return "GitHub nie przyjął tokenu (wygasł albo jest błędny). Wklej nowy token w polu „Połączenie z GitHubem bez AI”.";
       case "token_scope": return "Token nie ma dostępu do tego zasobu. Sprawdź: repozytorium Ubikfam/BliSperanto, Issues: Read and write, Pull requests: Read-only.";
       default: return "Odczyt nieudany ("+(c||"błąd")+").";
@@ -522,18 +526,48 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
     D17:{card:[["EO100-050.svg","helptelefono (help- + telefon-)"]]},
     D18:{card:[["BP-AR-01.svg","BP-AR-01 (-ar)"]]}
   };
+  // A figure is [path, caption]. A bare file name means cockpit/img/<name> (the files above). With a token the file is
+  // read from the private repository (GET contents, raw) and shown from a blob URL in an <img>, where an SVG cannot run
+  // code; in claude.ai the copies bundled with the artifact (img/<name>) are used. Only .svg/.png paths inside the
+  // repository, optionally "@ref" for a branch or commit.
+  var FIG_PATH=/^[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.(?:svg|png)(?:@[A-Za-z0-9_.\/-]+)?$/;
+  var figCache={};
+  function figPath(p){p=String(p||"").trim(); return p.indexOf("/")<0?"cockpit/img/"+p:p;}
+  function figSource(path){
+    if(!FIG_PATH.test(path)||path.indexOf("..")>=0)return Promise.reject({code:"tool_error",message:"Niedozwolona ścieżka grafiki."});
+    if(MCP&&MCP.rest){ if(!figCache[path])figCache[path]=MCP.file(path); return figCache[path]; }
+    var name=/^cockpit\/img\/([^\/@]+)$/.exec(path);
+    if(name)return Promise.resolve("img/"+name[1]);
+    return Promise.reject({code:"needs_token"});
+  }
   function figList(list){
     var box=el("div","figs");
-    list.forEach(function(f){var fig=el("figure","fig");var im=document.createElement("img");im.src="img/"+f[0];im.alt=f[1];im.loading="lazy";
-      im.onerror=function(){fig.hidden=true;};fig.appendChild(im);fig.appendChild(el("figcaption",null,f[1]));box.appendChild(fig);});
+    list.forEach(function(f){
+      var path=figPath(f[0]), fig=el("figure","fig"), im=document.createElement("img"), cap=el("figcaption",null,f[1]||path);
+      im.alt=f[1]||path; im.loading="lazy"; fig.appendChild(im); fig.appendChild(cap); box.appendChild(fig);
+      var fail=function(e){im.remove(); var why=e&&e.code==="token_scope"?"brak dostępu: dodaj do tokenu Contents: Read-only":e&&e.code==="needs_token"?"grafika dostępna w wersji z tokenem":"nie udało się wczytać";
+        fig.appendChild(el("figcaption","muted",why+" · "+path));};
+      im.onerror=function(){fail(null);};
+      figSource(path).then(function(src){im.src=src;},fail);
+    });
     return box;
   }
-  function figures(id){
-    var e=CARD_IMAGES[id]; if(!e||!e.card)return null;
-    var wrap=el("div"); wrap.appendChild(el("p","muted","Przykład, którego dotyczy pytanie (stan obecny):")); wrap.appendChild(figList(e.card)); return wrap;
+  function figures(c){
+    var list=(c.figs&&c.figs.card||[]).concat((CARD_IMAGES[c.id]&&CARD_IMAGES[c.id].card)||[]); if(!list.length)return null;
+    var wrap=el("div"); wrap.appendChild(el("p","muted","Przykład, którego dotyczy pytanie:")); wrap.appendChild(figList(list)); return wrap;
   }
-  function optionFigures(id,n){
-    var e=CARD_IMAGES[id]; return e&&e.opt&&e.opt[n]?figList(e.opt[n]):null;
+  function optionFigures(c,n){
+    var list=(c.figs&&c.figs.opt[n]||[]).concat((CARD_IMAGES[c.id]&&CARD_IMAGES[c.id].opt&&CARD_IMAGES[c.id].opt[n])||[]);
+    return list.length?figList(list):null;
+  }
+  // "Grafika: a.svg — podpis; b.svg" (card) and "Grafika 2: c.svg" (option 2), one per line in the card text.
+  function parseFigures(p){
+    var out={card:[],opt:{}}, re=/^Grafika(?:\s+(\d))?:\s*(.+)$/gm, m;
+    while((m=re.exec(p))){
+      var list=m[2].replace(/`/g,"").split(";").map(function(x){var q=x.split(/\s+[—–-]\s+/);return [q[0].trim(),plain(q.slice(1).join(" — "))];}).filter(function(f){return f[0];});
+      if(m[1]){out.opt[m[1]]=(out.opt[m[1]]||[]).concat(list);} else out.card=out.card.concat(list);
+    }
+    return out;
   }
 
   var MCP=null;
@@ -576,7 +610,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
       var st=/^Status:\s*([A-Z_]+)/m.exec(p);
       var recRaw=raw("Rekomendacja"); var recN=(/^\s*(\d)\b/.exec(plain(recRaw))||[])[1]||null;
       cards.push({id:m[1],title:plain(m[2]),status:st?st[1]:"BRAK_STATUSU",q:raw("Pytanie"),opts:parseOptions(raw("Opcje")),
-        rec:recRaw,recN:recN,none:raw("Bez odpowiedzi"),links:mdLinks(raw("Źródło")).concat(mdLinks(raw("Status")))});
+        rec:recRaw,recN:recN,none:raw("Bez odpowiedzi"),links:mdLinks(raw("Źródło")).concat(mdLinks(raw("Status"))),figs:parseFigures(p)});
     });
     var groups=$("dec-groups"); groups.textContent="";
     if(!cards.length){setNotice("dec-state","W #50 nie znalazłam kart w formacie „### Dnn: …”. Otwórz Issue bezpośrednio.","warn");return;}
@@ -606,7 +640,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
         card.appendChild(el("h3",null,c.title));
         if(c.reply){var rp=el("p");rp.appendChild(el("strong",null,"Twoja odpowiedź ("+c.reply.at+"): "));rp.appendChild(document.createTextNode("„"+c.reply.text+"”"));card.appendChild(rp);
           if(c.reply.url){var rr=el("div","row");rr.appendChild(link(c.reply.url,"Komentarz w #50"));card.appendChild(rr);}}
-        var figs=figures(c.id); if(figs)card.appendChild(figs);
+        var figs=figures(c); if(figs)card.appendChild(figs);
         if(c.q){var qq=el("p");qq.appendChild(el("strong",null,"Pytanie: "));richText(c.q,qq);card.appendChild(qq);}
         if(c.opts.length){
           var box=el("div","opts");
@@ -615,7 +649,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
             var oh=el("div","opt-head"); oh.appendChild(el("strong",null,"Opcja "+o.n+(c.recN===o.n?" · rekomendowana":"")));
             if(g[3]){var pk=el("button","pick","Wybieram"); pk.type="button"; (function(o){pk.addEventListener("click",function(){decide(card,c,o,slot);});})(o); oh.appendChild(pk);}
             ob.appendChild(oh); ob.appendChild(richText(o.text,el("span")));
-            var of=optionFigures(c.id,o.n); if(of)ob.appendChild(of);
+            var of=optionFigures(c,o.n); if(of)ob.appendChild(of);
             box.appendChild(ob);
           });
           card.appendChild(box);
@@ -665,15 +699,15 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
   $("token-forget").addEventListener("click",function(){forgetToken();location.reload();});
   function restApi(token){
     var base="https://api.github.com/repos/"+OWNER+"/"+REPO, ISSUES=[1,47,50,163];
-    function req(method,path,body){
-      return fetch(base+path,{method:method,cache:"no-store",headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28"},body:body?JSON.stringify(body):undefined})
+    function req(method,path,body,raw){
+      return fetch(base+path,{method:method,cache:"no-store",headers:{"Accept":raw?"application/vnd.github.raw":"application/vnd.github+json","Authorization":"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28"},body:body?JSON.stringify(body):undefined})
         .then(function(r){
           if(r.status===401)throw {code:"token_invalid"};
           if(r.status===403&&r.headers.get("x-ratelimit-remaining")==="0")throw {code:"rate_limited"};
           if(r.status===403||r.status===404)throw {code:"token_scope"};
           if(r.status===429)throw {code:"rate_limited"};
           if(!r.ok)throw {code:"tool_error",message:"HTTP "+r.status};
-          return r.json();
+          return raw?r.blob():r.json();
         },function(){throw {code:"server_unavailable"};})
         .then(function(j){return {payload:j};});
     }
@@ -688,7 +722,15 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
       if(tool==="add_issue_comment"&&n===50&&typeof a.body==="string"&&a.body.indexOf("Bogusław zatwierdza: ")===0)return req("POST","/issues/50/comments",{body:a.body});
       return Promise.reject({code:"tool_error",message:"Ta operacja nie jest dozwolona w pulpicie."});
     }
-    return {rest:true,
+    // Only figure files of the decision cards: read-only, .svg/.png, inside this repository (figSource checks the path).
+    function file(path){
+      var at=path.indexOf("@"), ref=at>=0?path.slice(at+1):"", p=at>=0?path.slice(0,at):path;
+      if(!FIG_PATH.test(path)||path.indexOf("..")>=0)return Promise.reject({code:"tool_error"});
+      var type=/\.svg$/.test(p)?"image/svg+xml":"image/png";
+      return req("GET","/contents/"+p.split("/").map(encodeURIComponent).join("/")+(ref?"?ref="+encodeURIComponent(ref):""),null,true)
+        .then(function(res){return URL.createObjectURL(new Blob([res.payload],{type:type}));});
+    }
+    return {rest:true, file:file,
       callTool:function(server,tool,args){return call(tool,args);},
       watchTool:function(server,tool,args,cb,opts){
         var go=function(){call(tool,args).then(function(r){cb({type:"data",result:r});},function(e){cb({type:"error",error:e});});};
