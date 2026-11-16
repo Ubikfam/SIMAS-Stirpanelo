@@ -1,0 +1,722 @@
+<title>SIMAS Stirpanelo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  SIMAS Cockpit v0 (SIMAS-COCKPIT-01) — widok tylko do odczytu.
+  Zrodlo stanu: GitHub Ubikfam/BliSperanto (#47 STOP i kolejka, #50 decyzje, PR).
+  v0.8 (16.11.2026, polecenie wlasciciela: jeden Stirpanelo niezalezny od AI). Dwie drogi do tych samych danych:
+  1) w claude.ai: konektor GitHub widza (capability "mcp");
+  2) poza claude.ai (plik lokalny, GitHub Pages, dowolna przegladarka): wlasny token GitHub wlasciciela, wpisany
+     w tej stronie i trzymany tylko na tym urzadzeniu; strona laczy sie wylacznie z api.github.com.
+  W kodzie nie ma tokenow ani danych projektu. Brak wysylania, brak sterowania STOP.
+-->
+<style>
+[hidden]{display:none!important}
+/* Layout: wąska kolumna operacyjna; pasek STOP zawsze na górze, pod nim zakładki. */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#15202b; --muted:#566573; --line:#d5dde4;
+  --accent:#1f5f8b; --accent-ink:#ffffff;
+  --ok:#1e7a46; --ok-bg:#e3f3ea; --warn:#8a5a00; --warn-bg:#fdf1d8; --bad:#a3262a; --bad-bg:#fbe4e4; --info-bg:#e6eef5;
+  --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f161c; --surface:#17212a; --ink:#e4ebf1; --muted:#9aabb9; --line:#2b3a46;
+  --accent:#6fb0dd; --accent-ink:#0b1720;
+  --ok:#6fd39b; --ok-bg:#163326; --warn:#f0c36a; --warn-bg:#3a2d10; --bad:#f19a9c; --bad-bg:#3d1a1c; --info-bg:#1b2c3a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161c; --surface:#17212a; --ink:#e4ebf1; --muted:#9aabb9; --line:#2b3a46;
+  --accent:#6fb0dd; --accent-ink:#0b1720;
+  --ok:#6fd39b; --ok-bg:#163326; --warn:#f0c36a; --warn-bg:#3a2d10; --bad:#f19a9c; --bad-bg:#3d1a1c; --info-bg:#1b2c3a; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:60rem;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:var(--s4) var(--s6);display:grid;gap:var(--s4)}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--s2)}
+h1{font-size:1.5rem;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1 small{font-weight:400;color:var(--muted);font-size:.95rem;margin-left:var(--s2)}
+h2{font-size:1.15rem;margin:0;text-wrap:balance}
+h3{font-size:1rem;margin:0}
+.mono{font-family:var(--f-mono);font-size:.82rem;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.mode{font-size:.85rem;padding:var(--s1) var(--s3);border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+/* STOP band */
+.stop{border-radius:10px;padding:var(--s3) var(--s4);display:grid;gap:var(--s1);border:2px solid var(--line);background:var(--surface)}
+.stop[data-state="active"]{border-color:var(--bad);background:var(--bad-bg)}
+.stop[data-state="inactive"]{border-color:var(--ok);background:var(--ok-bg)}
+.stop[data-state="unknown"]{border-color:var(--warn);background:var(--warn-bg)}
+.stop strong{font-size:1.1rem}
+/* tabs */
+nav.tabs{display:flex;flex-wrap:wrap;gap:var(--s2);border-bottom:1px solid var(--line);padding-bottom:var(--s2)}
+nav.tabs button{font:inherit;font-weight:700;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:var(--s2) var(--s4);border-radius:8px;cursor:pointer;min-height:44px}
+nav.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+section.panel{display:grid;gap:var(--s4)}
+.block{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:var(--s4);display:grid;gap:var(--s3);min-width:0}
+.block-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:var(--s2)}
+.src{font-size:.8rem;color:var(--muted)}
+.notice{padding:var(--s3);border-radius:8px;background:var(--info-bg);font-size:.92rem}
+.notice.bad{background:var(--bad-bg)} .notice.warn{background:var(--warn-bg)}
+ul.feed{list-style:none;margin:0;padding:0;display:grid;gap:var(--s3)}
+ul.feed li{border-top:1px solid var(--line);padding-top:var(--s3);display:grid;gap:var(--s1);min-width:0}
+ul.feed li:first-child{border-top:0;padding-top:0}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;font-size:.85rem;color:var(--muted)}
+.excerpt{margin:0;overflow-wrap:anywhere;font-size:.95rem}
+.chips{display:flex;flex-wrap:wrap;gap:var(--s1)}
+.chip{font-family:var(--f-mono);font-size:.72rem;padding:1px var(--s2);border-radius:4px;border:1px solid var(--line);letter-spacing:.03em}
+.chip.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.chip.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.chip.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:var(--s3)}
+.card{border:1px solid var(--line);border-radius:8px;padding:var(--s3);display:grid;gap:var(--s2);align-content:start;min-width:0}
+.opts{display:grid;gap:var(--s2)}
+.opt{border:1px solid var(--line);border-radius:6px;padding:var(--s2) var(--s3);display:grid;gap:var(--s1)}
+.opt.rec{border-color:var(--ok);background:var(--ok-bg)}
+.opt-head{display:flex;justify-content:space-between;gap:var(--s2);align-items:center;flex-wrap:wrap}
+.opt-head strong{font-size:.95rem}
+.pick{font:inherit;font-size:.85rem;padding:3px var(--s3);border-radius:5px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.confirm{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;background:var(--warn-bg);border-radius:6px;padding:var(--s2) var(--s3)}
+.confirm .note{flex-basis:100%;font:inherit;font-size:.9rem;padding:var(--s2);border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--ink);min-height:3.2em}
+.confirm button{font:inherit;font-size:.85rem;padding:3px var(--s3);border-radius:5px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.confirm button.go{background:var(--ok);border-color:var(--ok);color:#fff}
+.saved{background:var(--ok-bg);color:var(--ok);border-radius:6px;padding:var(--s2) var(--s3);font-weight:700}
+.copybtn{font:inherit;font-size:.82rem;padding:2px var(--s2);border-radius:5px;border:1px solid var(--accent);background:var(--surface);color:var(--accent);cursor:pointer}
+.copybtn.done{background:var(--ok);border-color:var(--ok);color:#fff}
+.figs{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.fig{margin:0;border:1px solid var(--line);border-radius:6px;padding:var(--s1);background:#fff;text-align:center}
+.fig img{display:block;height:84px;width:auto;max-width:100%}
+.fig figcaption{font-size:.75rem;color:#566573}
+.links{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s3);font-size:.88rem}
+.howto{background:var(--info-bg);border-radius:8px;padding:var(--s3);font-size:.92rem}
+details.grp>summary{cursor:pointer;font-weight:700;padding:var(--s2) 0}
+.card p{margin:0;font-size:.92rem;overflow-wrap:anywhere}
+.btn{font:inherit;font-weight:700;border:1px solid var(--accent);background:transparent;color:var(--accent);padding:var(--s2) var(--s3);border-radius:8px;cursor:pointer;min-height:44px;text-decoration:none;display:inline-flex;align-items:center}
+.row{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center}
+pre.tpl{margin:0;padding:var(--s3);background:var(--bg);border:1px solid var(--line);border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--f-mono);font-size:.8rem}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+.tablewrap{overflow-x:auto}
+.tok{display:grid;gap:var(--s2)}
+.tok input[type=password]{font:inherit;font-family:var(--f-mono);font-size:.85rem;padding:var(--s2);border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);min-height:44px;width:100%;box-sizing:border-box}
+.tok label{display:flex;gap:var(--s2);align-items:center;font-size:.92rem}
+.tok ol{margin:0;padding-left:1.2rem;font-size:.92rem;display:grid;gap:var(--s1)}
+th,td{text-align:left;padding:var(--s2);border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>SIMAS Stirpanelo <small>v0.8 · działa w claude.ai i bez AI</small></h1>
+    <span class="mode" id="mode">Łączenie z GitHubem…</span>
+  </header>
+
+  <div class="stop" id="stop" data-state="unknown" role="status" aria-live="polite">
+    <strong id="stop-title">STOP: stan nieznany</strong>
+    <span id="stop-text">Trwa odczyt etykiet Issue #47. Stan nieznany wstrzymuje operacje chronione; analiza i testy mogą trwać.</span>
+    <span class="src" id="stop-src">Źródło: <a href="https://github.com/Ubikfam/BliSperanto/issues/47" target="_blank" rel="noopener">Issue #47</a>. Sterowania STOP w tym widoku nie ma; etykietę zmienia się w GitHubie, a zdejmuje ją tylko Bogusław.</span>
+  </div>
+
+  <div class="notice bad" id="offline" hidden>
+    <strong>Brak połączenia z GitHubem w tym widoku.</strong> Pulpit nie pokazuje żadnych bieżących wyników, bo nie ma ich skąd odczytać. Połącz go własnym tokenem GitHub (poniżej) albo otwórz go na claude.ai i zezwól na konektor GitHub.
+  </div>
+
+  <div class="block tok" id="token-box" hidden>
+    <div class="block-head"><h2>Połączenie z GitHubem bez AI</h2><span class="src">token zostaje w tej przeglądarce</span></div>
+    <p class="notice">Ta strona działa bez claude.ai i bez ChatGPT: czyta GitHub bezpośrednio Twoim tokenem. Token nie trafia do pliku, do repozytorium ani do nikogo poza api.github.com.</p>
+    <ol>
+      <li>Otwórz <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Settings → Fine-grained tokens → Generate new token</a>.</li>
+      <li>Repository access: <strong>Only select repositories → Ubikfam/BliSperanto</strong>. Expiration: np. 90 dni.</li>
+      <li>Permissions → Repository: <strong>Issues: Read and write</strong> (zapis tylko decyzji w #50), <strong>Pull requests: Read-only</strong>. Nic więcej.</li>
+      <li>Skopiuj token (zaczyna się od „github_pat_”) i wklej poniżej.</li>
+    </ol>
+    <input type="password" id="token-input" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label="Token GitHub">
+    <label><input type="checkbox" id="token-remember"> Zapamiętaj na tym urządzeniu (bez zaznaczenia: tylko do zamknięcia karty)</label>
+    <div class="row"><button class="btn" id="token-connect" type="button">Połącz z GitHubem</button><span class="muted" id="token-state" aria-live="polite"></span></div>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Sekcje">
+    <button role="tab" id="tab-postep" aria-controls="p-postep" aria-selected="true">Postęp</button>
+    <button role="tab" id="tab-decyzje" aria-controls="p-decyzje" aria-selected="false">Decyzje</button>
+    <button role="tab" id="tab-zespol" aria-controls="p-zespol" aria-selected="false">Zespół i kontakt</button>
+    <button role="tab" id="tab-novina" aria-controls="p-novina" aria-selected="false">Novina</button>
+  </nav>
+
+  <!-- POSTĘP -->
+  <section class="panel" id="p-postep" role="tabpanel" aria-labelledby="tab-postep">
+    <div class="block">
+      <div class="block-head"><h2>Ostatnie wyniki w kolejce programu</h2><span class="src" id="feed-src">Issue #47 · oczekiwanie na odczyt</span></div>
+      <div class="notice" id="feed-state">Wpisy pojawią się po odczycie Issue #47. Statusy w etykietach są kopiowane z treści wpisu; pulpit ich nie interpretuje ani nie zatwierdza.</div>
+      <ul class="feed" id="feed"></ul>
+      <div class="row"><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/47" target="_blank" rel="noopener">Otwórz #47</a><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/4" target="_blank" rel="noopener">Stan demonstratora #4</a></div>
+    </div>
+    <div class="block">
+      <div class="block-head"><h2>Otwarte PR</h2><span class="src" id="pr-src">oczekiwanie na odczyt</span></div>
+      <div class="notice" id="pr-state">Lista otwartych PR z GitHuba. Szkic (DRAFT) oznacza pracę bez scalenia na master.</div>
+      <div class="tablewrap"><table id="pr-table" hidden><thead><tr><th>PR</th><th>Tytuł</th><th>HEAD</th><th>Zmiana</th></tr></thead><tbody id="pr-body"></tbody></table></div>
+    </div>
+    <div class="block">
+      <div class="block-head"><h2>Grafiki Bliss</h2><span class="src">brak źródła w v0</span></div>
+      <div class="notice warn">W v0 pulpit nie ma podłączonego, zweryfikowanego artefaktu z wygenerowanymi grafikami Bliss, więc niczego tu nie wyświetla. Podgląd pojawi się dopiero razem z prawdziwym wynikiem kamienia milowego (SHA, test, ograniczenia).</div>
+    </div>
+  </section>
+
+  <!-- DECYZJE -->
+  <section class="panel" id="p-decyzje" role="tabpanel" aria-labelledby="tab-decyzje" hidden>
+    <div class="block">
+      <div class="block-head"><h2>Karty decyzji</h2><span class="src" id="dec-src">Issue #50 · oczekiwanie na odczyt</span></div>
+      <div class="notice">Jedyna aktywna lista decyzji to Issue #50. Wybór opcji w karcie zapisuje tam komentarz „Bogusław zatwierdza: Dnn=n” Twoim kontem GitHub. Poza tym pulpit niczego nie zmienia.</div>
+      <div class="notice" id="dec-state">Karty pojawią się po odczycie Issue #50.</div>
+      <div id="dec-groups" class="panel"></div>
+      <div class="row"><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/50" target="_blank" rel="noopener">Odpowiedz w #50</a></div>
+    </div>
+  </section>
+
+  <!-- ZESPÓŁ -->
+  <section class="panel" id="p-zespol" role="tabpanel" aria-labelledby="tab-zespol" hidden>
+    <div class="block">
+      <div class="block-head"><h2>Ostatni ślad pracy zespołu</h2><span class="src" id="team-src">#47 i #1 · oczekiwanie na odczyt</span></div>
+      <div class="notice">Na podstawie najnowszych wpisów w #47 i #1. Brak wpisu oznacza tylko brak śladu w tym wycinku, a nie przestój.</div>
+      <div class="grid2" id="team"></div>
+    </div>
+    <div class="block">
+      <div class="block-head"><h2>Kontakt</h2><span class="src">wysyłanie z pulpitu: niepodłączone w v0</span></div>
+      <div class="notice warn">Ten pulpit niczego nie wysyła. Przycisk otwiera wątek w GitHubie; wiadomość jest wysłana dopiero wtedy, gdy zapiszesz tam komentarz. Odpowiedź przychodzi w tym samym wątku.</div>
+      <div class="grid2">
+        <div class="card">
+          <h3>AidaW · orkiestracja i kolejka</h3>
+          <p>Nowe zadania, priorytety, pytania o stan prac. Wątek: #47.</p>
+          <pre class="tpl" id="tpl-aida">Bogusław → AidaW
+</pre>
+          <div class="row"><button class="btn" data-copy="tpl-aida">Kopiuj nagłówek</button><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/47#new_comment_field" target="_blank" rel="noopener">Otwórz #47</a></div>
+        </div>
+        <div class="card">
+          <h3>KlaudiaW · architektura i konsultacje</h3>
+          <p>Ocena architektury, plan, karty decyzji. Odpowiada w dyżurach o 07:40 i 19:40 (Europe/Berlin), w tym samym wątku.</p>
+          <pre class="tpl" id="tpl-klaudia">CONSULT → KlaudiaW | Bogusław
+</pre>
+          <div class="row"><button class="btn" data-copy="tpl-klaudia">Kopiuj nagłówek</button><a class="btn" href="https://github.com/Ubikfam/BliSperanto/issues/47#new_comment_field" target="_blank" rel="noopener">Otwórz #47</a></div>
+        </div>
+      </div>
+      <p class="src" id="copy-state" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- NOVINA -->
+  <section class="panel" id="p-novina" role="tabpanel" aria-labelledby="tab-novina" hidden>
+    <div class="block">
+      <div class="block-head"><h2>Novina · radar nowości</h2><span class="src" id="nov-src">#47 · oczekiwanie na odczyt</span></div>
+      <div class="notice">Kandydaci do oceny, a nie wdrożone funkcje. Każdy przechodzi kolejno: DISCOVERED → EVALUATED → PILOT_READY → PILOT_PASS/FAIL → ADOPTION_RECOMMENDED. Pokazuję wpisy z najnowszego wycinka #47, które wspominają Novinę.</div>
+      <div class="notice" id="nov-state">Wpisy pojawią się po odczycie Issue #47.</div>
+      <ul class="feed" id="nov"></ul>
+    </div>
+  </section>
+
+  <p class="src">SIMAS-COCKPIT-01 · v0.8 · Odczyt przez Twój konektor GitHub (claude.ai) albo Twój token GitHub (poza claude.ai). Plik nie zawiera tokenów ani skopiowanych danych projektu. <button class="copybtn" id="token-forget" type="button" hidden>Zapomnij token na tym urządzeniu</button> Ni simas kaj simas!</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var OWNER="Ubikfam", REPO="BliSperanto", GH="GitHub";
+  var REFRESH=180000; // 3 min, tylko gdy strona jest widoczna
+  var $=function(id){return document.getElementById(id);};
+
+  // ---------- zakładki ----------
+  var tabs=["postep","decyzje","zespol","novina"];
+  function show(name){
+    tabs.forEach(function(t){
+      $("tab-"+t).setAttribute("aria-selected", String(t===name));
+      $("p-"+t).hidden = t!==name;
+    });
+    try{localStorage.setItem("simas-tab",name);}catch(e){}
+  }
+  tabs.forEach(function(t){$("tab-"+t).addEventListener("click",function(){show(t);});});
+  var start="postep";
+  var h=(location.hash||"").replace("#","");
+  if(tabs.indexOf(h)>=0){start=h;}else{try{var s=localStorage.getItem("simas-tab");if(tabs.indexOf(s)>=0)start=s;}catch(e){}}
+  show(start);
+
+  // ---------- kopiowanie ----------
+  document.querySelectorAll("[data-copy]").forEach(function(b){
+    b.addEventListener("click",function(){
+      var el=$(b.getAttribute("data-copy")); var txt=el.textContent;
+      var done=function(m){$("copy-state").textContent=m;};
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(function(){done("Skopiowano nagłówek. Wklej go w komentarzu w GitHubie.");},
+          function(){selectText(el);done("Kopiowanie zablokowane; tekst jest zaznaczony, skopiuj go ręcznie.");});
+      } else {selectText(el);done("Tekst jest zaznaczony, skopiuj go ręcznie.");}
+    });
+  });
+  function selectText(el){try{var r=document.createRange();r.selectNodeContents(el);var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}}
+
+  // ---------- pomocnicze ----------
+  function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+  function link(href,text){var a=el("a",null,text);a.href=href;a.target="_blank";a.rel="noopener";return a;}
+  function fmt(iso){try{var d=new Date(iso);return d.toLocaleString("pl-PL",{timeZone:"Europe/Berlin",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});}catch(e){return String(iso);}}
+  function stamp(res){
+    var t=(res&&res.cache&&res.cache.storedAt)?res.cache.storedAt:Date.now();
+    var cached=!!(res&&res.cache);
+    return (cached?"z pamięci podręcznej, odczyt ":"odczyt na żywo ")+fmt(new Date(t).toISOString());
+  }
+  function plain(md){
+    return String(md||"")
+      .replace(/<!--[\s\S]*?-->/g," ")
+      .replace(/```[\s\S]*?```/g," [kod] ")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g," ")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g,"$1")
+      .replace(/[*`>#|]/g," ")
+      .replace(/\s+/g," ").trim();
+  }
+  function firstLine(md){
+    var lines=String(md||"").split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+    return plain(lines[0]||"(pusty wpis)");
+  }
+  var STATUS_RE=/\b(PASS|PARTIAL|FAIL|BLOCKED|NOT_RUN|TECHNICAL_BLOCKER|STOP|MERGED|DRAFT|NO_MERGE|ACCEPT|CHANGES_REQUIRED|QUEUED|PENDING_OWNER|OWNER_GATE|E2E_NOT_VERIFIED)\b/g;
+  function statuses(md){
+    var seen={},out=[],m; var s=String(md||""); STATUS_RE.lastIndex=0;
+    while((m=STATUS_RE.exec(s))&&out.length<6){if(!seen[m[1]]){seen[m[1]]=1;out.push(m[1]);}}
+    return out;
+  }
+  function chipClass(s){
+    if(/^(PASS|MERGED|ACCEPT)$/.test(s))return "chip ok";
+    if(/^(FAIL|BLOCKED|TECHNICAL_BLOCKER|STOP)$/.test(s))return "chip bad";
+    return "chip warn";
+  }
+  function chips(list){var c=el("div","chips");list.forEach(function(s){c.appendChild(el("span",chipClass(s),s));});return c;}
+  function actor(c){
+    var login=c&&c.user&&c.user.login||"";
+    if(login==="claude[bot]")return "Koda";
+    if(login==="chatgpt-codex-connector[bot]")return "AidaX";
+    // Konto Ubikfam pisze za AidęW, KlaudięW i Bogusława: rozstrzyga pierwsze imię w nagłówku wpisu.
+    var head=String(c&&c.body||"").slice(0,240), best=null, at=1e9;
+    ["KlaudiaW","AidaW","Bogusław"].forEach(function(n){var i=head.indexOf(n);if(i>=0&&i<at){at=i;best=n;}});
+    return best||("konto "+(login||"nieznane"));
+  }
+
+  // ---------- obsługa błędów konektora ----------
+  function errText(err){
+    var c=err&&err.code;
+    switch(c){
+      case "needs_reauth": return "Konektor GitHub wymaga ponownego zalogowania: claude.ai → Ustawienia → Konektory.";
+      case "server_not_connected": return "Konektor GitHub nie jest dodany dla tego konta: claude.ai → Ustawienia → Konektory.";
+      case "selection_required": return "Masz kilka konektorów GitHub. Wybierz jeden w oknie claude.ai, potem odśwież.";
+      case "not_in_manifest": case "approval_required": case "consent_required": return "Brak zgody na odczyt GitHuba dla tego pulpitu. Użyj przycisku poniżej albo menu Uprawnienia artefaktu.";
+      case "blocked_by_policy": return "Polityka organizacji blokuje to narzędzie GitHub.";
+      case "server_unavailable": case "rate_limited": return "GitHub chwilowo nie odpowiada. Pulpit spróbuje ponownie przy następnym odświeżeniu.";
+      case "tool_error": return "GitHub zwrócił błąd: "+String(err.message||"").slice(0,160);
+      case "not_granted": case "capability_disabled": case "capability_removed": return "Ten widok nie ma dostępu do konektorów.";
+      case "not_connected": return "Brak połączenia z GitHubem: nie ma konektora claude.ai ani tokenu na tym urządzeniu.";
+      case "token_invalid": return "GitHub nie przyjął tokenu (wygasł albo jest błędny). Wklej nowy token w polu „Połączenie z GitHubem bez AI”.";
+      case "token_scope": return "Token nie ma dostępu do tego zasobu. Sprawdź: repozytorium Ubikfam/BliSperanto, Issues: Read and write, Pull requests: Read-only.";
+      default: return "Odczyt nieudany ("+(c||"błąd")+").";
+    }
+  }
+  var DENIAL=/^(token_invalid|token_scope|needs_reauth|server_not_connected|selection_required|not_in_manifest|approval_required|consent_required|blocked_by_policy|not_granted|capability_disabled|capability_removed)$/;
+
+  function setNotice(id,msg,kind){var n=$(id);n.textContent=msg;n.className="notice"+(kind?" "+kind:"");n.hidden=false;}
+  function grantButton(id,mcp){
+    if(mcp&&mcp.rest){showTokenBox();return;}
+    var n=$(id); if(n.querySelector("button"))return;
+    var b=el("button","btn","Zezwól na odczyt GitHuba");
+    b.style.marginTop="var(--s2)";
+    b.addEventListener("click",function(){
+      mcp.callTool(GH,"issue_read",{method:"get_labels",owner:OWNER,repo:REPO,issue_number:47}).then(function(){location.reload();},function(e){setNotice(id,errText(e),"bad");});
+    });
+    n.appendChild(el("br")); n.appendChild(b);
+  }
+
+  // ---------- STOP ----------
+  function renderStop(res,err){
+    var box=$("stop");
+    if(err){
+      box.dataset.state="unknown";
+      $("stop-title").textContent="STOP: odczyt nieudany";
+      $("stop-text").textContent=errText(err)+" Stan nieznany wstrzymuje operacje chronione; analiza i testy mogą trwać.";
+      return;
+    }
+    var labels; try{labels=readLabels(res);}catch(e){labels=null;}
+    if(!Array.isArray(labels)||labels.some(function(l){return !(typeof l==="string"||(l&&typeof l.name==="string"));})){box.dataset.state="unknown";$("stop-title").textContent="STOP: odpowiedź nieczytelna";$("stop-text").textContent="Nie rozpoznałam pełnej listy etykiet. To nie potwierdza STOP. Wstrzymane są operacje chronione; analiza i testy mogą trwać.";return;}
+    var active=labels.some(function(l){return (typeof l==="string"?l:l.name)==="STOP";});
+    box.dataset.state=active?"active":"inactive";
+    $("stop-title").textContent=active?"STOP AKTYWNY":"STOP nieaktywny";
+    $("stop-text").textContent=(active?"Zapisy kodu/danych/konfiguracji, scalenia i wykonawcy z prawem zapisu są wstrzymani. Analiza i neutralne testy mogą trwać. STOP zdejmuje tylko Bogusław.":"Etykieta STOP nie jest ustawiona na #47; automaty mogą pracować w swoich granicach.")+" ("+stamp(res)+")";
+  }
+
+  function readLabels(res){
+    var p=res&&res.payload;
+    var issue=p&&p.issue||p;
+    var labels=Array.isArray(p)?p:issue&&issue.labels;
+    if(!Array.isArray(labels))throw {code:"tool_error",message:"Nieczytelna lista etykiet."};
+    return labels;
+  }
+  // ---------- #47 feed + team + novina ----------
+  var lastComments={i47:[],i1:[],i50:[]};
+  function renderFeed(list,res){
+    var ul=$("feed"); ul.textContent="";
+    var items=list.slice().reverse().slice(0,8);
+    $("feed-src").textContent="Issue #47 · "+stamp(res);
+    if(!items.length){setNotice("feed-state","Brak wpisów w ostatnim wycinku #47.");return;}
+    $("feed-state").hidden=true;
+    items.forEach(function(c){
+      var li=el("li");
+      var meta=el("div","meta"); meta.appendChild(el("span",null,actor(c))); meta.appendChild(el("span","mono",fmt(c.created_at))); meta.appendChild(link(c.html_url,"otwórz wpis"));
+      li.appendChild(meta);
+      li.appendChild(el("h3",null,firstLine(c.body).slice(0,160)));
+      var st=statuses(c.body); if(st.length)li.appendChild(chips(st));
+      var ex=plain(String(c.body||"").replace(/^\s*[^\n]*\n?/,"")); if(ex) li.appendChild(el("p","excerpt",ex.length>300?ex.slice(0,300)+"…":ex));
+      ul.appendChild(li);
+    });
+    $("feed-src").textContent="Issue #47 · "+stamp(res);
+  }
+  function renderTeam(){
+    var all=lastComments.i47.concat(lastComments.i1);
+    var who=["AidaW","KlaudiaW","Koda","AidaX"], desc={AidaW:"orkiestracja, kolejka",KlaudiaW:"architektura, konsultacje",Koda:"Claude Code w Actions, kontrola",AidaX:"Codex, kontrola i wykonanie"};
+    var box=$("team"); box.textContent="";
+    who.forEach(function(w){
+      var mine=all.filter(function(c){return actor(c)===w;}).sort(function(a,b){return a.created_at<b.created_at?1:-1;});
+      var card=el("div","card"); card.appendChild(el("h3",null,w)); card.appendChild(el("p","muted",desc[w]));
+      if(mine.length){
+        var c=mine[0];
+        var m=el("div","meta"); m.appendChild(el("span","mono",fmt(c.created_at))); m.appendChild(link(c.html_url,"ostatni wpis")); card.appendChild(m);
+        card.appendChild(el("p",null,firstLine(c.body).slice(0,140)));
+      } else card.appendChild(el("p","muted","Brak śladu w wczytanym wycinku."));
+      box.appendChild(card);
+    });
+  }
+  function renderNovina(res){
+    var list=lastComments.i47.filter(function(c){return /Novin/.test(c.body||"");}).reverse();
+    var ul=$("nov"); ul.textContent="";
+    if(!list.length){setNotice("nov-state","W najnowszym wycinku #47 nie ma wpisów Noviny. Starsze są w pełnej historii Issue.");}
+    else{$("nov-state").hidden=true;}
+    list.forEach(function(c){
+      var li=el("li"); var meta=el("div","meta"); meta.appendChild(el("span",null,actor(c))); meta.appendChild(el("span","mono",fmt(c.created_at))); meta.appendChild(link(c.html_url,"otwórz wpis"));
+      li.appendChild(meta);
+      var body=String(c.body||""); var i=body.search(/Novin/); var frag=plain(body.slice(Math.max(0,i-40),i+700));
+      li.appendChild(el("p","excerpt",frag+"…"));
+      var st=[]; ["DISCOVERED","EVALUATED","PILOT_READY","PILOT_PASS","PILOT_FAIL","ADOPTION_RECOMMENDED"].forEach(function(s){if(body.indexOf(s)>=0)st.push(s);});
+      if(st.length){var cc=el("div","chips");st.forEach(function(s){cc.appendChild(el("span","chip",s));});li.appendChild(cc);}
+      ul.appendChild(li);
+    });
+    $("nov-src").textContent="#47 · "+stamp(res);
+  }
+
+  // Connector responses can contain an issue directly or under issue, and
+  // comment arrays directly or under comments. Reject unknown shapes as errors.
+  function readIssue(res){
+    var p=res&&res.payload;
+    var issue=p&&p.issue||p;
+    if(!issue||typeof issue!=="object"||Array.isArray(issue))throw {code:"tool_error",message:"Nieczytelna odpowiedź Issue."};
+    return issue;
+  }
+  function readComments(res){
+    var p=res&&res.payload, comments=Array.isArray(p)?p:p&&p.comments;
+    if(!Array.isArray(comments))throw {code:"tool_error",message:"Nieczytelna lista komentarzy."};
+    var valid=comments.filter(function(c){return !!(c&&typeof c.body==="string"&&(c.id||c.html_url||c.url));}).map(function(c){
+      return Object.assign({},c,{html_url:c.html_url||c.url||""});
+    });
+    if(comments.length&&!valid.length)throw {code:"tool_error",message:"Brak czytelnych komentarzy."};
+    return valid;
+  }
+
+  function loadComments(mcp,issue,key,onDone){
+    // 1) liczba komentarzy z "get", 2) ostatnia strona (10) i przedostatnia
+    mcp.callTool(GH,"issue_read",{method:"get",owner:OWNER,repo:REPO,issue_number:issue},{cache:{staleTime:60000,gcTime:600000}}).then(function(r){
+      var n=readIssue(r).comments;
+      if(!Number.isInteger(n)||n<0)throw {code:"tool_error",message:"Brak liczby komentarzy Issue."};
+      var last=Math.max(1,Math.ceil(n/10));
+      var pages=[last]; if(last>1 && n%10!==0 && n%10<6) pages.unshift(last-1);
+      return Promise.all(pages.map(function(pg){
+        return mcp.callTool(GH,"issue_read",{method:"get_comments",owner:OWNER,repo:REPO,issue_number:issue,perPage:10,page:pg},{cache:{staleTime:60000,gcTime:600000}});
+      })).then(function(rs){
+        var list=[],seen={}; rs.forEach(function(x){var c=readComments(x); c.forEach(function(k){var id=k.html_url||k.id; if(!seen[id]){seen[id]=1;list.push(k);}});});
+        lastComments[key]=list; onDone(null,list,rs[rs.length-1]);
+      });
+    }).catch(function(e){onDone(e);});
+  }
+
+  // ---------- PR ----------
+  function renderPRs(res){
+    var arr=res&&res.payload; if(!Array.isArray(arr)){setNotice("pr-state","Nie rozpoznałam odpowiedzi z listą PR.","warn");return;}
+    var tb=$("pr-body"); tb.textContent="";
+    arr.slice(0,15).forEach(function(p){
+      var tr=el("tr");
+      var a=el("td"); a.appendChild(link("https://github.com/Ubikfam/BliSperanto/pull/"+p.number,"#"+p.number)); if(p.draft)a.appendChild(el("div","chip warn","DRAFT")); tr.appendChild(a);
+      tr.appendChild(el("td",null,String(p.title||"")));
+      tr.appendChild(el("td","mono",String(p.head&&p.head.sha||"").slice(0,10)));
+      tr.appendChild(el("td","mono",fmt(p.updated_at)));
+      tb.appendChild(tr);
+    });
+    $("pr-table").hidden=false; $("pr-state").hidden=true;
+    $("pr-src").textContent=stamp(res);
+  }
+
+  // ---------- #50 ----------
+  // Odpowiedzi właściciela w komentarzach #50. Konto Ubikfam pisze też za AidęW i KlaudięW,
+  // więc za odpowiedź właściciela uznajemy wpis z konta OWNER bez nagłówka agentki.
+  // Pulpit tylko cytuje odpowiedź i jej zakres kart; wpis decyzji do karty należy do AidyW.
+  function ownerReplies(comments){
+    var out={};
+    (comments||[]).forEach(function(c){
+      if(!c||!c.user||c.user.login!==OWNER)return;
+      var who=actor(c); if(who==="KlaudiaW"||who==="AidaW")return;
+      if(/KlaudiaG|zapis KlaudiaG/.test(String(c.body||""))&&!/^Bogusław zatwierdza/m.test(String(c.body||"")))return;
+      var b=String(c.body||""), ids={}, m, re=/\bD(\d{1,3})(?:\s*[–—-]\s*D?(\d{1,3}))?\b/g;
+      while((m=re.exec(b))){
+        var a=+m[1], z=m[2]?+m[2]:a; if(z<a||z-a>50)z=a;
+        for(var k=a;k<=z;k++)ids["D"+(k<10?"0":"")+k]=1;
+      }
+      Object.keys(ids).forEach(function(id){out[id]={text:plain(b).slice(0,160),url:c.html_url||"",at:String(c.created_at||"").slice(0,10)};});
+    });
+    return out;
+  }
+  var lastDecRes=null;
+  // Markdown fragment -> DOM with real links (only http(s) URLs), bold stripped.
+  function richText(md,into){
+    var text=String(md||"").replace(/<!--[\s\S]*?-->/g," ").replace(/\*\*/g,"");
+    var re=/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, last=0, m;
+    while((m=re.exec(text))){ if(m.index>last)into.appendChild(document.createTextNode(text.slice(last,m.index))); into.appendChild(link(m[2],m[1])); last=re.lastIndex; }
+    if(last<text.length)into.appendChild(document.createTextNode(text.slice(last)));
+    return into;
+  }
+  function mdLinks(md){
+    var out=[],re=/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,m; while((m=re.exec(String(md||""))))out.push({label:m[1],url:m[2]}); return out;
+  }
+  function parseOptions(line){
+    var parts=String(line||"").split(/\*\*(\d)\.\*\*/), opts=[];
+    for(var i=1;i<parts.length;i+=2)opts.push({n:parts[i],text:(parts[i+1]||"").trim()});
+    return opts;
+  }
+  function copyButton(text){
+    var b=el("button","copybtn","Kopiuj „"+text+"”"); b.type="button";
+    b.addEventListener("click",function(){
+      var done=function(){b.classList.add("done");b.textContent="Skopiowano: "+text;};
+      try{ navigator.clipboard.writeText(text).then(done,function(){b.textContent="Wpisz ręcznie: "+text;}); }catch(e){b.textContent="Wpisz ręcznie: "+text;}
+    });
+    return b;
+  }
+  // Illustrations bundled with the page (cockpit/img/README.md: byte copies of working files, not ratified glyphs).
+  // card: example the question is about (current state); opt: per-option comparison (Hannes builder renders).
+  var CARD_IMAGES={
+    D10:{opt:{"1":[["D10-opt1-infanamika-odstep.svg","infanamika: odstęp znakowy"]],"2":[["D10-opt2-infanamika-styk.svg","infanamika: człony stykające się"]]}},
+    D11:{opt:{"1":[["D11-opt1-infanamika-hannes.svg","infanamika: wskaźnik nad ⊥ (reguła Hannesa)"],["D11-opt1-familamika-hannes.svg","familamika: nad ⊥"],["D11-opt1-rulsegamika-hannes.svg","rulseĝamika: nad ⊥"]],
+              "2":[["EO100-095.svg","infanamika: wskaźnik nad sercem (obecny render)"],["EO100-096.svg","familamika: nad sercem"],["EO100-097.svg","rulseĝamika: nad sercem"]]}},
+    D12:{card:[["BP-BO-02D1-NL25.svg","BP-BO-02D1-NL25"]]},
+    D17:{card:[["EO100-050.svg","helptelefono (help- + telefon-)"]]},
+    D18:{card:[["BP-AR-01.svg","BP-AR-01 (-ar)"]]}
+  };
+  function figList(list){
+    var box=el("div","figs");
+    list.forEach(function(f){var fig=el("figure","fig");var im=document.createElement("img");im.src="img/"+f[0];im.alt=f[1];im.loading="lazy";
+      im.onerror=function(){fig.hidden=true;};fig.appendChild(im);fig.appendChild(el("figcaption",null,f[1]));box.appendChild(fig);});
+    return box;
+  }
+  function figures(id){
+    var e=CARD_IMAGES[id]; if(!e||!e.card)return null;
+    var wrap=el("div"); wrap.appendChild(el("p","muted","Przykład, którego dotyczy pytanie (stan obecny):")); wrap.appendChild(figList(e.card)); return wrap;
+  }
+  function optionFigures(id,n){
+    var e=CARD_IMAGES[id]; return e&&e.opt&&e.opt[n]?figList(e.opt[n]):null;
+  }
+
+  var MCP=null;
+  // One-click owner decision: posts "Bogusław zatwierdza: Dnn=n" to #50 with the viewer's GitHub connector.
+  function decide(card,c,o,slot){
+    slot.textContent="";
+    var bar=el("div","confirm");
+    bar.appendChild(el("span",null,"Zatwierdzasz "+c.id+" = opcja "+o.n+"?"));
+    var note=document.createElement("textarea"); note.className="note"; note.rows=2; note.maxLength=2000;
+    note.placeholder="Twoja uwaga lub wskazówka dla wykonawców (nieobowiązkowo)"; bar.appendChild(note);
+    var go=el("button","go","Zatwierdzam"); go.type="button";
+    var no=el("button",null,"Anuluj"); no.type="button";
+    no.addEventListener("click",function(){slot.textContent="";});
+    go.addEventListener("click",function(){
+      if(!MCP){bar.textContent="Brak połączenia z GitHubem w tym widoku.";return;}
+      go.disabled=true; no.disabled=true; note.disabled=true; go.textContent="Zapisuję…";
+      var extra=String(note.value||"").trim();
+      var body="Bogusław zatwierdza: "+c.id+"="+o.n+"\n\n"+c.id+" "+c.title+" → opcja "+o.n+": "+plain(o.text)+
+        (extra?"\n\n**Uwaga właściciela:** "+extra.replace(/@/g,"@\u200b"):"")+"\n\n_Decyzja zapisana jednym kliknięciem z pulpitu SIMAS Stirpanelo._";
+      MCP.callTool(GH,"add_issue_comment",{owner:OWNER,repo:REPO,issue_number:50,body:body}).then(function(r){
+        var url=r&&r.payload&&(r.payload.html_url||r.payload.url)||ISSUE50;
+        slot.textContent=""; var ok=el("div","saved","Zapisane: "+c.id+" = opcja "+o.n+" ✓ "); ok.appendChild(link(url,"zobacz w #50")); slot.appendChild(ok);
+        loadComments(MCP,50,"i50",function(){});
+      },function(e){ go.disabled=false; no.disabled=false; go.textContent="Spróbuj ponownie"; bar.appendChild(el("span","muted"," "+errText(e))); });
+    });
+    bar.appendChild(go); bar.appendChild(no); slot.appendChild(bar);
+  }
+  var ISSUE50="https://github.com/"+OWNER+"/"+REPO+"/issues/50";
+
+  function renderDecisions(res){
+    if(res)lastDecRes=res; else res=lastDecRes;
+    if(!res)return;
+    var body; try{body=readIssue(res).body;}catch(e){setNotice("dec-state",errText(e),"warn");return;}
+    if(typeof body!=="string"){setNotice("dec-state","Nie rozpoznałam treści Issue #50.","warn");return;}
+    var parts=body.split(/^###\s+/m).slice(1);
+    var cards=[];
+    parts.forEach(function(p){
+      var m=/^(D\d+):\s*(.+)$/m.exec(p); if(!m)return;
+      var raw=function(k){var r=new RegExp("^"+k+":\\s*(.+)$","m").exec(p);return r?r[1]:"";};
+      var st=/^Status:\s*([A-Z_]+)/m.exec(p);
+      var recRaw=raw("Rekomendacja"); var recN=(/^\s*(\d)\b/.exec(plain(recRaw))||[])[1]||null;
+      cards.push({id:m[1],title:plain(m[2]),status:st?st[1]:"BRAK_STATUSU",q:raw("Pytanie"),opts:parseOptions(raw("Opcje")),
+        rec:recRaw,recN:recN,none:raw("Bez odpowiedzi"),links:mdLinks(raw("Źródło")).concat(mdLinks(raw("Status")))});
+    });
+    var groups=$("dec-groups"); groups.textContent="";
+    if(!cards.length){setNotice("dec-state","W #50 nie znalazłam kart w formacie „### Dnn: …”. Otwórz Issue bezpośrednio.","warn");return;}
+    $("dec-state").hidden=true;
+    var how=el("div","howto");
+    how.appendChild(el("strong",null,"Jak zdecydować: "));
+    how.appendChild(document.createTextNode("kliknij „Wybieram” przy opcji, w razie potrzeby dopisz uwagę i potwierdź. Pulpit sam zapisze w #50 „Bogusław zatwierdza: D10=1”. Zielona ramka = rekomendacja wykonawców."));
+    groups.appendChild(how);
+    var rep=ownerReplies(lastComments.i50);
+    var open=function(c){return /^PENDING_OWNER/.test(c.status)||/^NEEDS_ARTIFACT/.test(c.status);};
+    cards.forEach(function(c){c.reply=open(c)&&rep[c.id]||null;});
+    var answered=cards.filter(function(c){return !!c.reply;});
+    var ready=cards.filter(function(c){return !c.reply&&/^PENDING_OWNER/.test(c.status);});
+    var wait=cards.filter(function(c){return !c.reply&&/^NEEDS_ARTIFACT/.test(c.status);});
+    var other=cards.filter(function(c){return !c.reply&&!open(c);});
+    [["Do Twojej decyzji ("+ready.length+")",ready,"Wybierz opcję i odpowiedz w #50.",true],
+     ["Odpowiedziałeś — czeka na wpis do karty ("+answered.length+")",answered,"Twoja odpowiedź z komentarza #50; status karty jeszcze bez zmian.",false],
+     ["Czekają na artefakt wykonawców ("+wait.length+")",wait,"Teraz nic nie musisz robić.",false],
+     ["Inne statusy ("+other.length+")",other,"Status przepisany z karty, bez interpretacji.",false]].forEach(function(g){
+      if(!g[1].length)return;
+      var wrap=el("details","block grp"); if(g[3])wrap.open=true;
+      var sm=el("summary",null,g[0]+" · "+g[2]); wrap.appendChild(sm);
+      var grid=el("div","grid2");
+      g[1].forEach(function(c){
+        var card=el("div","card"), slot;
+        var top=el("div","row"); top.appendChild(el("span","chip",c.id)); top.appendChild(el("span",chipClass(c.status.indexOf("PENDING")>=0?"PENDING_OWNER":"QUEUED"),c.status)); card.appendChild(top);
+        card.appendChild(el("h3",null,c.title));
+        if(c.reply){var rp=el("p");rp.appendChild(el("strong",null,"Twoja odpowiedź ("+c.reply.at+"): "));rp.appendChild(document.createTextNode("„"+c.reply.text+"”"));card.appendChild(rp);
+          if(c.reply.url){var rr=el("div","row");rr.appendChild(link(c.reply.url,"Komentarz w #50"));card.appendChild(rr);}}
+        var figs=figures(c.id); if(figs)card.appendChild(figs);
+        if(c.q){var qq=el("p");qq.appendChild(el("strong",null,"Pytanie: "));richText(c.q,qq);card.appendChild(qq);}
+        if(c.opts.length){
+          var box=el("div","opts");
+          c.opts.forEach(function(o){
+            var ob=el("div","opt"+(c.recN===o.n?" rec":""));
+            var oh=el("div","opt-head"); oh.appendChild(el("strong",null,"Opcja "+o.n+(c.recN===o.n?" · rekomendowana":"")));
+            if(g[3]){var pk=el("button","pick","Wybieram"); pk.type="button"; (function(o){pk.addEventListener("click",function(){decide(card,c,o,slot);});})(o); oh.appendChild(pk);}
+            ob.appendChild(oh); ob.appendChild(richText(o.text,el("span")));
+            var of=optionFigures(c.id,o.n); if(of)ob.appendChild(of);
+            box.appendChild(ob);
+          });
+          card.appendChild(box);
+        }
+        slot=el("div"); card.appendChild(slot);
+        if(c.rec){var r=el("p");r.appendChild(el("strong",null,"Rekomendacja: "));richText(c.rec,r);card.appendChild(r);}
+        if(c.none){var n=el("p","muted");n.appendChild(document.createTextNode("Bez odpowiedzi: "));richText(c.none,n);card.appendChild(n);}
+        var lk=el("div","links");
+        c.links.forEach(function(l){lk.appendChild(link(l.url,l.label));});
+        lk.appendChild(link(ISSUE50,"Karta w #50"));
+        card.appendChild(lk);
+        grid.appendChild(card);
+      });
+      wrap.appendChild(grid); groups.appendChild(wrap);
+    });
+    $("dec-src").textContent="Issue #50 · "+stamp(res)+" · treść karty, nie werdykt pulpitu";
+  }
+
+  // ---------- start ----------
+  function offline(){
+    $("mode").textContent="Bez połączenia";
+    $("offline").hidden=false;
+    renderStop(null,{code:"not_connected"});
+    ["feed-state","pr-state","dec-state","nov-state"].forEach(function(id){setNotice(id,"Źródło niedostępne w tym widoku. Nie pokazuję danych bieżących ani przykładowych.","bad");});
+    $("team").textContent=""; $("team").appendChild(el("p","muted","Źródło niedostępne w tym widoku."));
+  }
+
+  // ---------- poza claude.ai: GitHub REST z tokenem właściciela (v0.8) ----------
+  // Ten sam kształt co konektor (callTool/watchTool, wynik {payload}), żeby reszta strony nie zależała od drogi.
+  // Dozwolone są tylko odczyty #47/#1/#50 i listy PR oraz jeden zapis: komentarz decyzji w #50.
+  var TOKEN_KEY="simas-gh-token";
+  function readToken(){
+    var t=null;
+    try{t=sessionStorage.getItem(TOKEN_KEY);}catch(e){}
+    if(!t){try{t=localStorage.getItem(TOKEN_KEY);}catch(e){}}
+    return t&&/^[A-Za-z0-9_]{20,255}$/.test(t)?t:null;
+  }
+  function forgetToken(){try{sessionStorage.removeItem(TOKEN_KEY);}catch(e){} try{localStorage.removeItem(TOKEN_KEY);}catch(e){}}
+  function showTokenBox(){$("token-box").hidden=false;}
+  $("token-connect").addEventListener("click",function(){
+    var t=String($("token-input").value||"").trim();
+    if(!/^[A-Za-z0-9_]{20,255}$/.test(t)){$("token-state").textContent="To nie wygląda na token GitHub.";return;}
+    forgetToken();
+    try{($("token-remember").checked?localStorage:sessionStorage).setItem(TOKEN_KEY,t);}catch(e){$("token-state").textContent="Przeglądarka nie pozwala zapisać tokenu; spróbuj bez zapamiętywania.";return;}
+    $("token-input").value=""; location.reload();
+  });
+  $("token-forget").addEventListener("click",function(){forgetToken();location.reload();});
+  function restApi(token){
+    var base="https://api.github.com/repos/"+OWNER+"/"+REPO, ISSUES=[1,47,50];
+    function req(method,path,body){
+      return fetch(base+path,{method:method,cache:"no-store",headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28"},body:body?JSON.stringify(body):undefined})
+        .then(function(r){
+          if(r.status===401)throw {code:"token_invalid"};
+          if(r.status===403&&r.headers.get("x-ratelimit-remaining")==="0")throw {code:"rate_limited"};
+          if(r.status===403||r.status===404)throw {code:"token_scope"};
+          if(r.status===429)throw {code:"rate_limited"};
+          if(!r.ok)throw {code:"tool_error",message:"HTTP "+r.status};
+          return r.json();
+        },function(){throw {code:"server_unavailable"};})
+        .then(function(j){return {payload:j};});
+    }
+    function call(tool,a){
+      var n=Number(a&&a.issue_number);
+      if(tool==="issue_read"&&ISSUES.indexOf(n)>=0){
+        if(a.method==="get")return req("GET","/issues/"+n);
+        if(a.method==="get_labels")return req("GET","/issues/"+n+"/labels");
+        if(a.method==="get_comments")return req("GET","/issues/"+n+"/comments?per_page="+Number(a.perPage||10)+"&page="+Number(a.page||1));
+      }
+      if(tool==="list_pull_requests")return req("GET","/pulls?state=open&per_page=15&sort=updated&direction=desc");
+      if(tool==="add_issue_comment"&&n===50&&typeof a.body==="string"&&a.body.indexOf("Bogusław zatwierdza: ")===0)return req("POST","/issues/50/comments",{body:a.body});
+      return Promise.reject({code:"tool_error",message:"Ta operacja nie jest dozwolona w pulpicie."});
+    }
+    return {rest:true,
+      callTool:function(server,tool,args){return call(tool,args);},
+      watchTool:function(server,tool,args,cb,opts){
+        var go=function(){call(tool,args).then(function(r){cb({type:"data",result:r});},function(e){cb({type:"error",error:e});});};
+        go(); setInterval(function(){if(document.visibilityState==="visible")go();},(opts&&opts.refetchInterval)||REFRESH);
+      }};
+  }
+
+  var api=window.claude&&typeof window.claude.use==="function"?Promise.resolve(window.claude.use("mcp")).catch(function(){return null;}):Promise.resolve(null);
+  Promise.resolve(api).then(function(mcp){
+    if(!mcp){
+      var token=readToken();
+      if(!token){offline();showTokenBox();return;}
+      mcp=restApi(token); $("token-forget").hidden=false;
+    }
+    MCP=mcp;
+    $("mode").textContent=(mcp.rest?"GitHub · Twój token, bez AI":"GitHub · konektor claude.ai")+" · odczyt + zapis decyzji w #50";
+    var denied=false;
+
+    mcp.watchTool(GH,"issue_read",{method:"get_labels",owner:OWNER,repo:REPO,issue_number:47},function(ev){
+      if(ev.type==="data")renderStop(ev.result);
+      else{renderStop(null,ev.error); if(DENIAL.test(ev.error.code||"")){denied=true;grantButton("stop-text",mcp);}}
+    },{refetchInterval:60000});
+
+    mcp.watchTool(GH,"list_pull_requests",{owner:OWNER,repo:REPO,state:"open",perPage:15,sort:"updated",direction:"desc",fields:["number","title","draft","head","updated_at"]},function(ev){
+      if(ev.type==="data")renderPRs(ev.result);
+      else{ if(DENIAL.test(ev.error.code||"")){$("pr-table").hidden=true;} setNotice("pr-state",errText(ev.error),"bad"); }
+    },{refetchInterval:REFRESH});
+
+    mcp.watchTool(GH,"issue_read",{method:"get",owner:OWNER,repo:REPO,issue_number:50},function(ev){
+      if(ev.type==="data")renderDecisions(ev.result);
+      else{ if(DENIAL.test(ev.error.code||"")){$("dec-groups").textContent="";} setNotice("dec-state",errText(ev.error),"bad"); }
+    },{refetchInterval:REFRESH});
+
+    function refreshComments(){
+      loadComments(mcp,47,"i47",function(err,list,res){
+        if(err){ if(DENIAL.test(err.code||"")){$("feed").textContent="";$("nov").textContent="";lastComments.i47=[];} setNotice("feed-state",errText(err),"bad"); setNotice("nov-state",errText(err),"bad"); renderTeam(); return;}
+        renderFeed(list,res); renderNovina(res); renderTeam(); $("team-src").textContent="#47 i #1 · "+stamp(res);
+      });
+      loadComments(mcp,1,"i1",function(err){ if(!err)renderTeam(); });
+      loadComments(mcp,50,"i50",function(err){ if(err){ if(DENIAL.test(err.code||""))lastComments.i50=[]; } renderDecisions(null); });
+    }
+    refreshComments();
+    var timer=setInterval(function(){ if(document.visibilityState==="visible")refreshComments(); },REFRESH);
+    document.addEventListener("visibilitychange",function(){ if(document.visibilityState==="visible")refreshComments(); });
+  });
+})();
+</script>
+
